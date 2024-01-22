@@ -1,0 +1,313 @@
+<html>
+    <head>
+        <title>De Novo Drug Generation</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+        <meta http-equiv="Pragma" content="no-cache">
+        <meta http-equiv="Expires" content="0">
+
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+        <script>
+
+
+            var createCard = function(dataObj){
+                var imgId = document.createElement("img");
+                var url = window.location.href;
+                var arr = url.split("/");
+                var baseURL = arr[0] + '//' + arr[2];
+                imgId.src = baseURL + dataObj.imgURL
+                imgId.width = "300"
+                imgId.height = "300"
+                imgId.className = "card-img-top";
+
+                // Bootstrap card
+                // https://getbootstrap.com/docs/4.0/components/card/ 
+
+                var cardCol = document.createElement("div");
+                cardCol.className = "col-sm-4";
+
+                var cardDiv = document.createElement("div");
+                cardDiv.className = "card";
+               
+                var cardBody = document.createElement("div");
+                cardBody.className = "card-body";
+
+                if(dataObj.prop=="logP"){
+                    var cardText = document.createElement("p");
+                    cardText.className = "card-text";
+                    cardText.innerHTML = "LogP Value: "+dataObj.logp;
+                } else {
+                    var cardText = document.createElement("p");
+                    cardText.className = "card-text";
+                    cardText.innerHTML = "Num Benzene Rings: "+dataObj.benzene;
+                }
+
+                var cardLink = document.createElement("button");
+                cardLink.className = "btn btn-primary";
+                cardLink.type = "button";
+                cardLink.innerHTML = "Details";
+                
+                var dataContainerAttribute = document.createAttribute("data-container");
+                dataContainerAttribute.value = "body";
+                cardLink.setAttributeNode(dataContainerAttribute);
+                
+                var dataToggleAttribute = document.createAttribute("data-toggle");
+                dataToggleAttribute.value = "popover";
+                cardLink.setAttributeNode(dataToggleAttribute);                
+
+                var dataPlacementAttribute = document.createAttribute("data-placement");
+                dataPlacementAttribute.value = "bottom";
+                cardLink.setAttributeNode(dataPlacementAttribute);
+
+                var popupContent = "";
+                for (arrkey in dataObj){
+                    if(arrkey!='imgURL' && arrkey!='logp' && arrkey!='benzene'){
+                        popupContent = popupContent.concat(arrkey,": ",dataObj[arrkey],"<br />");
+                    }
+                }
+
+                var dataContentAttribute = document.createAttribute("data-content");
+                dataContentAttribute.value = popupContent;
+                cardLink.setAttributeNode(dataContentAttribute);
+
+
+                cardBody.appendChild(cardText);
+                cardBody.appendChild(cardLink);
+
+                cardDiv.appendChild(imgId);
+                cardDiv.appendChild(cardBody);
+
+                cardCol.appendChild(cardDiv);
+
+                return cardCol;
+            }
+
+            // Using xhr to retrieve data
+            var evalstringsObj = {
+                xhr: new XMLHttpRequest(),
+                getimages: function(){
+                    // Getting the number of strings
+                    var numStringsHolder = document.getElementById('numStringOptions');
+                    var numStrings = numStringsHolder.options[numStringsHolder.selectedIndex].value;
+
+                    this.xhr.onreadystatechange = this.showimages;
+                    this.xhr.open('GET', '/api/structure/showimg/' + this.GnnType +'/' + this.BiasType + '/' + this.MolpropType + '/' + numStrings);
+                    
+                    this.xhr.send();
+                },
+                showimages: function(){
+                    if(this.readyState == 4 && this.status==200){
+                        var enclosure = document.getElementById('ImgEnclosure1');
+                        enclosure.innerHTML = "";
+                        var res = JSON.parse(this.response);
+                        var molInfo = res.mol_list;
+                        for(var i =0; i<molInfo.length; i++){
+                            var cardCol = createCard(molInfo[i]);
+
+                            enclosure.appendChild(cardCol);
+                        }
+
+                        var invalidPlaceholder = document.getElementById("invalidMolecules");
+                        invalidPlaceholder.innerHTML = res.invalid_molecules;
+
+                        $(function () {
+                            $('[data-toggle="popover"]').popover({
+                                html: true
+                            })
+                        })
+                    }
+                },
+                GnnType: 'dnc', // Default value
+                changeGenerator: function(nnType){
+                    console.log("Entered changeGenerator. this.GnnType before value: ", nnType);
+                    this.GnnType = nnType
+                    console.log("Entered changeGenerator. this.GnnType after value: ", nnType);
+                    var heading = document.getElementById("selectedGen");
+                    
+                    console.log("changeGenerator, configData", window.configData);
+                    heading.innerHTML = window.configData.generators[this.GnnType].name;
+                    var doc = document.getElementById("genBody");
+                    doc.innerHTML = window.configData.generators[this.GnnType].description;
+                },
+                BiasType: 'unbiased', // Default value
+                changeBias: function(biasType){
+                    console.log("Entered changeBias. value: ", biasType);
+                    this.BiasType = biasType;
+                    var doc = document.getElementById("selectedBias");
+                    doc.innerHTML = window.configData.biases[this.BiasType].description;
+                },
+                MolpropType: 'logP',
+                changeMolprop: function(molpropType){
+                    console.log("Entered changMolprop. value: ", molpropType);
+                    this.MolpropType = molpropType;
+                    var doc = document.getElementById("selectedProperty");
+                    doc.innerHTML = window.configData.molproperties[this.MolpropType].description;
+                }
+
+            }
+
+ 
+            // Using xhr to getData on options
+            var initializeObj = {
+                xhr: new XMLHttpRequest(),
+                getconfig: function(){
+                    this.xhr.onreadystatechange = this.processconfig;
+                    this.xhr.open('GET', '/api/config/getconfig');
+                    this.xhr.send();
+                },
+                processconfig: function(){
+                    if(this.readyState == 4 && this.status==200){
+                        var res = JSON.parse(this.response);
+                        window.configData = res;
+                        console.log("processconfig, configData", configData);
+                        console.log("processconfig, res", res);
+                        var defGen;
+                        var defBias;
+                        var defMolprop;
+                        var molproperties = res.molproperties;
+                        var molpropDropdown = document.getElementById('MolPropDropdownMenu');
+                        var biases = res.biases;
+                        var biasDropdown = document.getElementById('BiasDropdownMenu');
+                        var generators = res.generators;
+                        var genDropdown = document.getElementById('GenDropdownMenu');
+                        
+                        for (generator in generators){
+                            console.log("process config, generator: ", generator);
+                            defGen = generators[generator].id;
+                            temp = document.createElement('a');
+                            temp.setAttribute('onclick', "evalstringsObj.changeGenerator('"+ generators[generator].id+ "')");
+                            temp.className = "dropdown-item";
+                            temp.innerHTML = generators[generator].name;
+                            genDropdown.appendChild(temp);
+                        }
+
+                        for (bias in biases){
+                            console.log("process config, bias: ", bias);
+                            defBias = biases[bias].id;
+                            temp = document.createElement('a');
+                            temp.setAttribute('onclick', "evalstringsObj.changeBias('" + biases[bias].id+ "')");
+                            temp.className = "dropdown-item";
+                            temp.innerHTML = biases[bias].name;
+                            biasDropdown.appendChild(temp);
+                        }
+
+                        for (molproperty in molproperties){
+                            console.log("process config, molproperty: ", molproperty);
+                            defMolprop = molproperties[molproperty].id;
+                            temp = document.createElement('a');
+                            temp.setAttribute('onclick', "evalstringsObj.changeMolprop('" + molproperties[molproperty].id+ "')");
+                            temp.className = "dropdown-item";
+                            temp.innerHTML = molproperties[molproperty].name;
+                            molpropDropdown.appendChild(temp);
+                        }
+
+                        // Adding the number of strings option to the navbar
+                        var selectList = document.getElementById('numStringOptions');
+                        for(var i=2; i<=10; i+=2){
+                            var optionField = document.createElement('option');
+                            optionField.text = i;
+                            optionField.value = i;
+                            selectList.append(optionField);
+                        }
+
+                        evalstringsObj.changeGenerator(defGen);
+                        evalstringsObj.changeBias(defBias);
+                        evalstringsObj.changeMolprop(defMolprop);
+                    }
+                }
+            }
+        </script>
+    </head>   
+    <body onload="initializeObj.getconfig()">
+        <nav class="navbar navbar-expand-lg navbar-light bg-light" >
+            <a class="navbar-brand" href="#">De novo Drug Design</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent" aria-controls="#navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button> 
+            
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="GeneratorDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Generator
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="GeneratorDropdown" id="GenDropdownMenu">
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="BiasDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Bias
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="BiasDropdown" id="BiasDropdownMenu">
+                        </div>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="MolPropDropdown" role="button" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                            Molecular Property
+                        </a>
+                        <div class="dropdown-menu" aria-labelledby="MolPropDropdown" id="MolPropDropdownMenu">
+                        </div>
+                    </li>
+                    <li class="nav-item">
+                        
+                    </li>
+                </ul>
+                <div class="form-inline" style="text-align: right; margin-right: 20px">
+                    <label for="numStringOptions" style="margin-right: 10px">Number of Molecules </label>
+                    <select class="form-control" id="numStringOptions">
+                        
+                    </select>
+                </div>
+                <button id="generateStingsButton" class="btn btn-outline-success my-2 my-sm-0" onclick="evalstringsObj.getimages()">Generate Stings</button>
+            </div>
+        </nav>
+        <div class="container">
+            <div class = "row" style = "margin-top:30px;">
+                <div class = "col-sm-3">
+                    <div class="card" style="width: 16rem;">
+                        <div class="card-body">
+                            <h5 class="card-title" >Selected Generator</h5>
+                            <h6 class="card-subtitle mb-2 text-muted" id="selectedGen"></h6>
+                            <p class="card-text" id="genBody"></p>
+                            <a href="#" class="card-link"></a>
+                        </div>
+                    </div>
+                </div>
+                <div class = "col-sm-3">
+                    <div class="card" style="width: 16rem;">
+                        <div class="card-body">
+                            <h5 class="card-title" >Selected Bias</h5>
+                            <p class="card-text" id="selectedBias"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class = "col-sm-3">
+                    <div class="card" style="width: 16rem;">
+                        <div class="card-body">
+                            <h5 class="card-title" >Selected Property</h5>
+                            <p class="card-text" id="selectedProperty"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class = "col-sm-3">
+                    <div class="card" style="width: 16rem;">
+                        <div class="card-body">
+                            <h5 class="card-title" >Invalid molecules</h5>
+                            <p class="card-text" id="invalidMolecules"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class = "row" id = 'ImgEnclosure1' style = "margin-top:30px">
+            
+            </div>
+        </div>
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+        <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+    </body>
+</html>
