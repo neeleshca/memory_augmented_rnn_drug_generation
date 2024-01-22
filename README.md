@@ -1,9 +1,6 @@
 # Memory Augmented Recurrent Neural Networks For De-novo Drug Generation #
 This repository is the code to *Memory Augmented Recurrent Neural Networks For De-novo Drug Generation* by Naveen Suresh, Neelesh CA, Srikumar Subramanian and Dr. Gowri Srinivasa, currently submitted to PLOS One for review.
 
-## Plos One ##
-The data is uploaded as a separate zip due to size constraints. Please unzip the file and add it to the root directory.
-
 ## Installing requirements ##
 Conda is used to install the dependencies. Some of the dependencies like rdkit are harder to install using other means, hence they are not covered in this readme.<br> <br>
 ### Commands ###
